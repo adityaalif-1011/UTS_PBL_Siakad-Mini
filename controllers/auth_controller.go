@@ -1,17 +1,72 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
 
 	"siakad-mini/config"
 	"siakad-mini/helpers"
 	"siakad-mini/models"
 )
+
+var jsonFieldNames = map[string]string{
+	"Email":         "email",
+	"Password":      "password",
+	"NIM":           "nim",
+	"Nama":          "nama",
+	"Prodi":         "prodi",
+	"Angkatan":      "angkatan",
+	"IPKTerakhir":   "ipk_terakhir",
+	"CourseID":      "course_id",
+	"TahunAkademik": "tahun_akademik",
+}
+
+func mapBindErrors(err error) map[string][]string {
+	result := map[string][]string{}
+	var verrs validator.ValidationErrors
+	if !errors.As(err, &verrs) {
+		result["error"] = []string{err.Error()}
+		return result
+	}
+	for _, fe := range verrs {
+		field := fe.Field()
+		key := strings.ToLower(field)
+		if j, ok := jsonFieldNames[field]; ok {
+			key = j
+		}
+		result[key] = append(result[key], bindMessage(field, fe.Tag(), fe.Param()))
+	}
+	return result
+}
+
+func bindMessage(field, tag, param string) string {
+	switch tag {
+	case "required":
+		return field + " wajib diisi"
+	case "email":
+		return "Format email tidak valid"
+	case "min":
+		if field == "Password" {
+			return "Password minimal " + param + " karakter"
+		}
+		return field + " minimal " + param
+	case "max":
+		return field + " maksimal " + param
+	case "len":
+		return field + " harus " + param + " digit"
+	case "numeric":
+		return field + " harus berupa angka"
+	default:
+		return field + " tidak valid"
+	}
+}
 
 var (
 	loginAttempts = make(map[string][]time.Time)
@@ -47,10 +102,7 @@ type LoginInput struct {
 func Login(c *gin.Context) {
 	var input LoginInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		helpers.Error(c, 422, "Validasi gagal", gin.H{
-			"email":    "Format email tidak valid",
-			"password": "Password minimal 8 karakter",
-		})
+		helpers.ValidationError(c, mapBindErrors(err))
 		return
 	}
 

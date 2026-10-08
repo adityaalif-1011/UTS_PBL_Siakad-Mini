@@ -17,3 +17,11 @@ func Error(c *gin.Context, code int, message string, errors interface{}) {
 	}
 	c.JSON(code, resp)
 }
+
+func ValidationError(c *gin.Context, errors map[string][]string) {
+	c.JSON(422, gin.H{
+		"success": false,
+		"message": "Validasi gagal",
+		"errors":  errors,
+	})
+}

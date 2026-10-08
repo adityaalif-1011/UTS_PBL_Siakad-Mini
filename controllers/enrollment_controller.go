@@ -27,12 +27,12 @@ func CreateEnrollment(c *gin.Context) {
 
 	var input EnrollmentInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		helpers.Error(c, 422, "Validasi gagal", gin.H{"error": err.Error()})
+		helpers.ValidationError(c, mapBindErrors(err))
 		return
 	}
 
 	if !tahunAkademikRegex.MatchString(input.TahunAkademik) {
-		helpers.Error(c, 422, "Validasi gagal", gin.H{"tahun_akademik": "Format harus 2026/2027-Ganjil"})
+		helpers.ValidationError(c, map[string][]string{"tahun_akademik": {"Format harus 2026/2027-Ganjil"}})
 		return
 	}
 
@@ -79,7 +79,11 @@ func CreateEnrollment(c *gin.Context) {
 			CourseID:      input.CourseID,
 			TahunAkademik: input.TahunAkademik,
 		}
-		return tx.Create(&enrollment).Error
+		if err := tx.Create(&enrollment).Error; err != nil {
+			return err
+		}
+		tx.Preload("Course").First(&enrollment, enrollment.ID)
+		return nil
 	})
 	if err != nil {
 		msg := err.Error()

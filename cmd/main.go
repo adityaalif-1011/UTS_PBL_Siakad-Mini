@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/joho/godotenv"
 	"siakad-mini/config"
 	"siakad-mini/routes"
 	"siakad-mini/seeders"
-	"github.com/joho/godotenv"
 )
 
 func main() {

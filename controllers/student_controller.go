@@ -77,37 +77,37 @@ type CreateStudentInput struct {
 	Nama        string  `json:"nama" binding:"required"`
 	Email       string  `json:"email" binding:"required,email"`
 	Prodi       string  `json:"prodi" binding:"required"`
-	Angkatan    int     `json:"angkatan" binding:"required"`
+	Angkatan    int     `json:"angkatan" binding:"required,min=1000,max=9999"`
 	IPKTerakhir float64 `json:"ipk_terakhir"`
 }
 
 func CreateStudent(c *gin.Context) {
 	var input CreateStudentInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		helpers.Error(c, 422, "Validasi gagal", gin.H{"error": err.Error()})
+		helpers.ValidationError(c, mapBindErrors(err))
 		return
 	}
 
 	if input.Angkatan > time.Now().Year() {
-		helpers.Error(c, 422, "Validasi gagal", gin.H{"angkatan": "Tidak boleh melebihi tahun berjalan"})
+		helpers.ValidationError(c, map[string][]string{"angkatan": {"Tidak boleh melebihi tahun berjalan"}})
 		return
 	}
 
 	if input.IPKTerakhir < 0 || input.IPKTerakhir > 4 {
-		helpers.Error(c, 422, "Validasi gagal", gin.H{"ipk_terakhir": "Harus antara 0.00 - 4.00"})
+		helpers.ValidationError(c, map[string][]string{"ipk_terakhir": {"Harus antara 0.00 - 4.00"}})
 		return
 	}
 
 	var count int64
 	config.DB.Model(&models.Student{}).Where("nim = ?", input.NIM).Count(&count)
 	if count > 0 {
-		helpers.Error(c, 422, "Validasi gagal", gin.H{"nim": "NIM sudah terdaftar"})
+		helpers.ValidationError(c, map[string][]string{"nim": {"NIM sudah terdaftar"}})
 		return
 	}
 
 	config.DB.Model(&models.User{}).Where("email = ?", input.Email).Count(&count)
 	if count > 0 {
-		helpers.Error(c, 422, "Validasi gagal", gin.H{"email": "Email sudah terdaftar"})
+		helpers.ValidationError(c, map[string][]string{"email": {"Email sudah terdaftar"}})
 		return
 	}
 
@@ -189,7 +189,7 @@ func GetStudentByID(c *gin.Context) {
 type UpdateStudentInput struct {
 	Nama        string  `json:"nama"`
 	Prodi       string  `json:"prodi"`
-	Angkatan    int     `json:"angkatan"`
+	Angkatan    int     `json:"angkatan" binding:"omitempty,min=1000,max=9999"`
 	IPKTerakhir float64 `json:"ipk_terakhir"`
 }
 
@@ -202,7 +202,17 @@ func UpdateStudent(c *gin.Context) {
 
 	var input UpdateStudentInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		helpers.Error(c, 422, "Validasi gagal", gin.H{"error": err.Error()})
+		helpers.ValidationError(c, mapBindErrors(err))
+		return
+	}
+
+	if input.Angkatan != 0 && input.Angkatan > time.Now().Year() {
+		helpers.ValidationError(c, map[string][]string{"angkatan": {"Tidak boleh melebihi tahun berjalan"}})
+		return
+	}
+
+	if input.IPKTerakhir < 0 || input.IPKTerakhir > 4 {
+		helpers.ValidationError(c, map[string][]string{"ipk_terakhir": {"Harus antara 0.00 - 4.00"}})
 		return
 	}
 
